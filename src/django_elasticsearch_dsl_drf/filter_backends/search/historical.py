@@ -98,6 +98,22 @@ class SearchFilterBackend(BaseFilterBackend, FilterBackendMixin):
         >>>     },
         >>> }
 
+        Type 3:
+
+        >>> search_nested_fields = {
+        >>>     'city': {
+        >>>         'path': 'country.city',
+        >>>         'fields': [
+        >>>             {
+        >>>                 'name': 'name',
+        >>>                 'parameters': {
+        >>>                     'operator': 'and'
+        >>>                 }
+        >>>             }
+        >>>         ]
+        >>>     }
+        >>> }
+
         :param request: Django REST framework request.
         :param queryset: Base queryset.
         :param view: View.
@@ -121,17 +137,29 @@ class SearchFilterBackend(BaseFilterBackend, FilterBackendMixin):
 
                 for _field in options.get('fields', []):
 
-                    # In case if we deal with structure 2
+                    # TODO: structure 2 doesn't work
+
+                    # In case if we deal with structure 3
                     if isinstance(_field, dict):
                         # TODO: take options (such as boost) into consideration
                         field = "{}.{}".format(path, _field['name'])
+                        field_parameters = _field.get('parameters')
                     # In case if we deal with structure 1
                     else:
                         field = "{}.{}".format(path, _field)
+                        field_parameters = None
 
-                    field_kwargs = {
-                        field: search_term
-                    }
+                    if field_parameters:
+                        field_parameters.update(
+                            {'query': search_term}
+                        )
+                        field_kwargs = {
+                            field: field_parameters
+                        }
+                    else:
+                        field_kwargs = {
+                            field: search_term
+                        }
 
                     queries.append(
                         Q("match", **field_kwargs)
